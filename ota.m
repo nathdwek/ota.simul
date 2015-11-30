@@ -37,16 +37,20 @@ Mn6.vds = VDD.spec/2; %First, maximize output swing.
 Mn6.vsb = 0;
 Mn6.gm = 2*pi*2.5*fGBW.spec*Cl.spec;
 Mn6.vov = 0.05;% To ensure gm/Ids = 10 knowing gm = Ids/2Vov
-Mn6.lg = 200e-9;%pif
-Mn6.vth = tableValueWref('vth',NRVT,Mn6.lg,0,Mn6.vds,Mn6.vsb);
+%Also: low inversion is good for low vdsat and thus high output swing.
+Mn6.lg = 150e-9;%low lg because we need current to have gain
+%and we don't want a super wide transistor. Lower limit is set by the fact
+%that we need gds to not be that high or else stage 2 does not give any
+%gain whatsoever.
 Mn6.nFingers = 2;
+
+Mn6.vth = tableValueWref('vth',NRVT,Mn6.lg,0,Mn6.vds,Mn6.vsb);
 Mn6.vgs = Mn6.vov + Mn6.vth;
 
 Mn6.w = mosWidth('gm', Mn6.gm, Mn6);
-
 Mn6 = mosOpValues(Mn6);
-
 stage2Current = Mn6.ids
+
 if mosCheckSaturation(Mn6)
 	fprintf('\nMn6 is in sat\n')
 end
@@ -55,7 +59,8 @@ end
 Cm = 10e-12;%First try value. Too big: load stage1 too much.
 %Too small: load Mn6 too much
 Mp2.nFingers = 2;
-Mp2.gm = 2*pi*fGBW.spec*Cm;
+Mp2.gm = 2*pi*fGBW.spec*Cm*1.1;
+%We need a bit some more gain than predicted here
 Mp2.lg = 200e-9;%pif
 Mp2.vov = -0.05;% To ensure gm/Ids = 10 knowing gm = Ids/2Vov
 Vdb2 = Mn6.vgs - VDD.spec
@@ -65,7 +70,6 @@ Mp2.vgs = Vgb2 - Mp2.vsb;
 Mp2.vds = Vdb2 - Mp2.vsb;
 
 Mp2.w = mosWidth('gm',Mp2.gm, Mp2);
-
 Mp2 = mosOpValues(Mp2);
 stage1Current = 2*Mp2.ids
 
@@ -79,7 +83,7 @@ end
 Mn4.vds = Mn6.vgs;
 Mn4.vgs = Mn4.vds;
 Mn4.vsb = 0;
-Mn4.lg = 200e-9;%pif
+Mn4.lg = 300e-9;%try to not have gds too much higher than Mp2.gds
 Mn4.ids = Mp2.ids;
 Mn4.nFingers = 2;
 
@@ -92,7 +96,7 @@ if mosCheckSaturation(Mn4)
  	fprintf('\nMn3,4 in sat\n')
 end
 
-%% size Mp7 for ids and ideal current source
+%% size Mp7 for ids, high output impedance
 Mp7.lg = 900e-9;%Really long for high output impedance
 Mp7.nFingers = 2;
 Mp7.vsb = 0;
@@ -100,6 +104,7 @@ Mp7.vds = Mn6.vgs - Mp2.vds - VDD.spec;
 
 Mp7.vov = -0.3;%increase |vov| to achieve smaller w
 %and thus smaller parasitic capacitances
+%But this sets Mp5.vgs and we need output swing.
 Mp7.vth = tableValueWref('vth', PRVT, Mp7.lg, 0, Mp7.vds, Mp7.vsb);
 Mp7.vgs = Mp7.vov + Mp7.vth;
 
@@ -113,8 +118,8 @@ if mosCheckSaturation(Mp7)
  	fprintf('\nMp7 in sat\n');
 end
 
-%% size Mp5 for ids, ideal current source
-Mp5.lg = 200e-9;
+%% size Mp5 for ids
+Mp5.lg = 120e-9;%Smallest lg that matches Mn6 in terms of gds.
 Mp5.nFingers = 2;
 Mp5.vsb = 0;
 Mp5.vds = Mn6.vds - VDD.spec;
@@ -131,13 +136,15 @@ if mosCheckSaturation(Mp5)
 end
 
 %% Size Mp8
-Mp8.lg = 900e-9;
+%No real constraints on small signal parameter of Mp8?
+Mp8.lg = 200e-9;
 Mp8.vsb = 0;
 Mp8.vgs = Mp7.vgs;
 Mp8.vds = Mp8.vgs;
 Mp8.nFingers = 2;
 
 Mp8.ids = max(stage1Current,stage2Current)/4;
+%B of a current mirror never higher than 5
 Mp8.w = mosWidth('ids', Mp8.ids, Mp8);
 
 Mp8 = mosOpValues(Mp8);
@@ -150,23 +157,30 @@ end
 %% calculate gain, dominant pole, GBW = gain* dominant pole (verify)
 gain = Mp2.gm/(Mp2.gds + Mn4.gds) * Mn6.gm/(Mn6.gds + Mp5.gds);
 
-p1 = (Mp2.gds + Mn4.gds)/((Cm + Mn6.cgd)*Mn6.gm/(Mn6.gds + Mp5.gds) + Mn6.cgs + Mn6.cgb + Mn4.cdb + Mp2.cdb + Mp2.cgd);
-p2 = (Mp5.gds + Mn6.gds + Mn6.gm * (Cm/(Cm + Mp5.cdb + Mn6.cdb + Mp5.cgd))) / (Cl.spec + Cm + Mp5.cdb + Mn6.cdb + Mp5.cgd);
+p1 = -(Mp2.gds + Mn4.gds)/((Cm + Mn6.cgd)*Mn6.gm/(Mn6.gds + Mp5.gds) + Mn6.cgs + Mn6.cgb + Mn4.cdb + Mp2.cdb + Mp2.cgd);
+p2 = -(Mp5.gds + Mn6.gds + Mn6.gm * (Cm/(Cm + Mp5.cdb + Mn6.cdb + Mp5.cgd))) / (Cl.spec + Cm + Mp5.cdb + Mn6.cdb + Mp5.cgd);
+Rm = -1/(Cm*p2)*(1 - p2*Cm/Mn6.gm);
+fprintf('\n Miller resistor = %f ohms', Rm);
+z1 = 1/(Cm*(1/Mn6.gm - Rm));
+p4 = -1/(Rm*(Mn6.cgs + Mn6.cgb + Mn4.cdb + Mp2.cdb + Mp2.cgd));
 
-sys = tf(gain,[1/(p1*p2) (p1+p2)/(p1*p2) 1]);
+sys = tf([-gain/z1 gain],[1/(p1*p2) -(p1+p2)/(p1*p2) 1]);
+sys = series(sys, tf(1, [-1/p4 1]));
 bodeplot(sys);grid on;
 
 domPole.real = p1/(2*pi);
-fGBW.real = gain*p1/(2*pi);
+fGBW.real = -gain*p1/(2*pi);
 p2OverGBW.real = p2/(gain*p1);
 totCurrent.real = stage1Current + stage2Current;
 swing.real = VDD.spec + Mp5.vdsat - Mn6.vdsat;
+[~,mPhi.real,~,~] = margin(sys);
 
-fprintf('\n\n--< OTA values>--\n\n')
+fprintf('\n\n--<OTA values>--\n\n')
 fprintf('\ngain = %f dB\n', 20*log10(gain))
-fprintf('\nDominant pole = %f kHz\n', domPole.real/1e3)
+fprintf('\nDominant pole = %f kHz\n', -domPole.real/1e3)
 fprintf('\nfGBW = %f MHz\n', fGBW.real/1e6);
 fprintf('\np2/gbw = %f\n', p2OverGBW.real)
 fprintf('\nCurrent consumption = %f mA\n', totCurrent.real/1e-3);
 fprintf('\nfom = %d MHz*pF/mA\n', (fGBW.real/1e6)*(Cl.spec/1e-12)/(totCurrent.real/1e3));
 fprintf('\nOutput swing = %f V\n', swing.real);
+fprintf('\nPhase margin = %f°\n', mPhi.real);
