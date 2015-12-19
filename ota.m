@@ -200,7 +200,7 @@ p4 = -1/(Rm*(Mn6.cgs + Mn6.cgb + Mn4.cdb + Mp2.cdb + Mp2.cgd));
 sys = tf([-gain/z1 gain],[1/(p1*p2) -(p1+p2)/(p1*p2) 1]);
 sys = series(sys, tf([-1/z3 1],[-1/p3 1]));
 sys = series(sys, tf(1, [-1/p4 1]));
-bodeplot(sys);grid on;
+%bodeplot(sys);grid on;
 
 domPole.real = p1/(2*pi);
 fGBW.real = -gain*p1/(2*pi);

@@ -1,0 +1,19 @@
+
+Device      Param    Noise Contribution    % Of Total
+
+/DUT/MP2    fn       0.0011608             39.71     
+/DUT/MP1    fn       0.00115934            39.61     
+/DUT/MN4    fn       0.000411413           4.99      
+/DUT/MN3    fn       0.000387043           4.41      
+/DUT/MN4    id       0.000323408           3.08      
+/DUT/MN3    id       0.000304224           2.73      
+/DUT/MP2    id       0.000297441           2.61      
+/DUT/MP1    id       0.000297087           2.60      
+/DUT/MP8    fn       6.55117e-05           0.13      
+/DUT/MP7    fn       5.25513e-05           0.08      
+
+Integrated Noise Summary (in V) Sorted By Noise Contributors
+Total Summarized Noise = 0.00184217
+Total Input Referred Noise = 0.00129607
+The above noise summary info is for noise data
+
