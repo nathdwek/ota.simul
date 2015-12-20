@@ -1,9 +1,7 @@
-close all;
 %% Loading MOS tables
 
 addpath(genpath('circuitDesign'));
 clear all;
-close all;
 load ('UMC65_RVT.mat');
 %% Initialize everything
 designkitName = 'umc65';
@@ -183,20 +181,29 @@ Mp8 = mosOpValues(Mp8);
 mosCheckSaturation(Mp8);
 
 
-%% calculate gain, dominant pole, GBW = gain* dominant pole (verify)
-gain = Mp2.gm/(Mp2.gds + Mn4.gds) * Mn6.gm/(Mn6.gds + Mp5.gds);
 
+%% calculate gain, dominant pole, GBW = gain* dominant pole (verify)
+% If exercise
+%Cm = 0;
+%Cl.spec = 1.5 * Cl.spec;
+Cm = 1.2 * Cm;
+%
+gain = Mp2.gm/(Mp2.gds + Mn4.gds) * Mn6.gm/(Mn6.gds + Mp5.gds);
 p1 = -(Mp2.gds + Mn4.gds)/((Cm + Mn6.cgd)*Mn6.gm/(Mn6.gds + Mp5.gds) + Mn6.cgs + Mn6.cgb + Mn4.cdb + Mp2.cdb + Mp2.cgd);
 p2 = -(Mp5.gds + Mn6.gds + Mn6.gm * (Cm/(Cm + Mp5.cdb + Mn6.cdb + Mp5.cgd))) / (Cl.spec + Cm + Mp5.cdb + Mn6.cdb + Mp5.cgd);
 Rm = -1/(Cm*p2)*(1 - p2*Cm/Mn6.gm);
+%If exercise
+%Rm = 0;
+Rm = 213.6;
+%
 fprintf('\n Miller resistor = %f ohms', Rm);
 z1 = 1/(Cm*(1/Mn6.gm - Rm));
-p3 = -Mn3.gm/(Mp1.cdb++Mp1.cgd+Mn3.cdb+Mn3.cgs+Mn3.cgb);
+p3 = -Mn3.gm/(Mp1.cdb+Mp1.cgd+Mn3.cdb+Mn3.cgs+Mn3.cgb);
 z3 = 2*p3;
 p4 = -1/(Rm*(Mn6.cgs + Mn6.cgb + Mn4.cdb + Mp2.cdb + Mp2.cgd));
 
 %sys = tf(gain,[1/(p1*p2) -(p1+p2)/(p1*p2) 1]);%This is with no nulling
-%zero
+%resistor
 sys = tf([-gain/z1 gain],[1/(p1*p2) -(p1+p2)/(p1*p2) 1]);
 sys = series(sys, tf([-1/z3 1],[-1/p3 1]));
 sys = series(sys, tf(1, [-1/p4 1]));
