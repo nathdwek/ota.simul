@@ -186,7 +186,7 @@ mosCheckSaturation(Mp8);
 % If exercise
 %Cm = 0;
 %Cl.spec = 1.5 * Cl.spec;
-Cm = 1.2 * Cm;
+%Cm = 1.2 * Cm;
 %
 gain = Mp2.gm/(Mp2.gds + Mn4.gds) * Mn6.gm/(Mn6.gds + Mp5.gds);
 p1 = -(Mp2.gds + Mn4.gds)/((Cm + Mn6.cgd)*Mn6.gm/(Mn6.gds + Mp5.gds) + Mn6.cgs + Mn6.cgb + Mn4.cdb + Mp2.cdb + Mp2.cgd);
@@ -194,7 +194,7 @@ p2 = -(Mp5.gds + Mn6.gds + Mn6.gm * (Cm/(Cm + Mp5.cdb + Mn6.cdb + Mp5.cgd))) / (
 Rm = -1/(Cm*p2)*(1 - p2*Cm/Mn6.gm);
 %If exercise
 %Rm = 0;
-Rm = 213.6;
+%Rm = 213.6;
 %
 fprintf('\n Miller resistor = %f ohms', Rm);
 z1 = 1/(Cm*(1/Mn6.gm - Rm));
@@ -202,12 +202,14 @@ p3 = -Mn3.gm/(Mp1.cdb+Mp1.cgd+Mn3.cdb+Mn3.cgs+Mn3.cgb);
 z3 = 2*p3;
 p4 = -1/(Rm*(Mn6.cgs + Mn6.cgb + Mn4.cdb + Mp2.cdb + Mp2.cgd));
 
+%If exercise
 %sys = tf(gain,[1/(p1*p2) -(p1+p2)/(p1*p2) 1]);%This is with no nulling
 %resistor
+%
 sys = tf([-gain/z1 gain],[1/(p1*p2) -(p1+p2)/(p1*p2) 1]);
 sys = series(sys, tf([-1/z3 1],[-1/p3 1]));
 sys = series(sys, tf(1, [-1/p4 1]));
-%bodeplot(sys);grid on;
+bodeplot(sys);grid on;
 
 domPole.real = p1/(2*pi);
 fGBW.real = -gain*p1/(2*pi);
@@ -215,6 +217,7 @@ p2OverGBW.real = p2/(gain*p1);
 totCurrent.real = stage1Current + stage2Current + Mp8.ids;
 swing.real = VDD.spec + Mp5.vdsat - Mn6.vdsat;
 [~,mPhi.real,~,~] = margin(sys);
+inputRange = VDD.spec + Mp7.vov + Mp1.vov + Mp1.vth - Mp1.vth - Mn3.vth - Mn3.vov;
 
 
 fprintf('\n\n--<OTA values>--\n\n')
@@ -227,3 +230,12 @@ fprintf('\nfom = %f MHz*pF/mA\n', (fGBW.real/1e6)*(Cl.spec/1e-12)/(totCurrent.re
 fprintf('\nOutput swing = %f V\n', swing.real);
 fprintf('\nPhase margin = %f°\n', mPhi.real);
 fprintf('\nIbias = %fmA\n',Mp8.ids*1e3);
+fprintf('\nInput Common Mode Range: %.0fmV\n', inputRange*1e3)
+
+%% Noise Calculations
+
+oneTwoFN = 2*Mp1.di2_fn*(log(100e9) - log(1))/Mp1.gm^2;
+threeFourFN = 2*Mn3.di2_fn*(log(100e9) - log(1))/Mp1.gm^2;
+threeFourID = 2*Mn3.di2_id*(100e9 - 1)/Mp1.gm^2;
+oneTwoID = 2*Mp1.di2_id*(100e9 - 1)/Mp1.gm^2;
+fprintf('\nApproximated input referred voltage noise power:%fVrms\n',sqrt(oneTwoFN+threeFourFN+threeFourID+oneTwoID) );
